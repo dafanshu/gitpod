@@ -5,53 +5,70 @@
 package storage
 
 import (
-	"fmt"
-	"strings"
+	"errors"
 	"testing"
+
+	"golang.org/x/xerrors"
 )
 
 func TestBlobObjectName(t *testing.T) {
-	name := "my-object-name"
-	objectName, err := blobObjectName(name)
-	if err != nil {
-		t.Fatalf("%+v", err)
+	tests := []struct {
+		Name             string
+		Input            string
+		ExpectedBlobName string
+		ExpectedError    error
+	}{
+		{
+			Name:             "simple name",
+			Input:            "my-simple-name",
+			ExpectedBlobName: "blobs/my-simple-name",
+		},
+		{
+			Name:             "name with slash",
+			Input:            "my-object-name/with-slash",
+			ExpectedBlobName: "blobs/my-object-name/with-slash",
+		},
+		{
+			Name:          "name with whitespace",
+			Input:         "name with whitespace",
+			ExpectedError: invalidNameError("name with whitespace"),
+		},
+		{
+			Name:          "name with invalid char",
+			Input:         "ä-is-invalid",
+			ExpectedError: invalidNameError("ä-is-invalid"),
+		},
 	}
-	exptectedObjectName := fmt.Sprintf("blobs/%s", name)
-	if objectName != exptectedObjectName {
-		t.Fatalf("unexpected object name: is '%s' but expected '%s'", objectName, exptectedObjectName)
+
+	for _, test := range tests {
+		t.Run(test.Name, func(t *testing.T) {
+			actualBlobName, err := blobObjectName(test.Input)
+			if actualBlobName != test.ExpectedBlobName {
+				t.Fatalf("unexpected object name: is '%s' but expected '%s'", actualBlobName, test.ExpectedBlobName)
+			}
+			if !equivalentError(err, test.ExpectedError) {
+				t.Fatalf("unexpected error: is '%v' but expected '%v'", err, test.ExpectedError)
+			}
+		})
 	}
 }
 
-func TestBlobObjectNameWithSlash(t *testing.T) {
-	name := "my-object-name/with-slash"
-	objectName, err := blobObjectName(name)
-	if err != nil {
-		t.Fatalf("%+v", err)
-	}
-	exptectedObjectName := fmt.Sprintf("blobs/%s", name)
-	if objectName != exptectedObjectName {
-		t.Fatalf("unexpected object name: is '%s' but expected '%s'", objectName, exptectedObjectName)
-	}
+func invalidNameError(name string) error {
+	return xerrors.Errorf(`blob name '%s' needs to match regex '^[a-zA-Z0-9._\-\/]+$'`, name)
 }
 
-func TestBlobObjectNameWithWhitespace(t *testing.T) {
-	name := "object name with whitespace"
-	_, err := blobObjectName(name)
-	if err == nil {
-		t.Fatal("blob name with whitespace should be rejected")
+func equivalentError(e1 error, e2 error) bool {
+	if e1 == e2 {
+		return true
 	}
-	if !strings.Contains(err.Error(), "needs to match regex") {
-		t.Fatalf("%+v", err)
+	if errors.Is(e1, e2) {
+		return true
 	}
-}
-
-func TestBlobObjectNameWithInvalidChar(t *testing.T) {
-	name := "object-name-with-invälid-char"
-	_, err := blobObjectName(name)
-	if err == nil {
-		t.Fatal("blob name with invalid char should be rejected")
+	if e1 == nil || e2 == nil {
+		return false
 	}
-	if !strings.Contains(err.Error(), "needs to match regex") {
-		t.Fatalf("%+v", err)
+	if e1.Error() == e2.Error() {
+		return true
 	}
+	return false
 }
