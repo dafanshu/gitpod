@@ -41,6 +41,10 @@ components:
 
   registryFacade:
     daemonSet: true
+  
+  contentService:
+    remoteStorage:
+      blobQuota: 1073741824 # 1 GiB
 
   workspace:
     # configure GCP registry

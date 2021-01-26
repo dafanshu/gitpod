@@ -219,6 +219,10 @@ func (s *testStorage) EnsureExists(ctx context.Context, ownerId string) (err err
 	return nil
 }
 
+func (s *testStorage) DiskUsage(ctx context.Context, bucket string, prefix string) (size int64, err error) {
+	return 0, nil
+}
+
 func (s *testStorage) SignDownload(ctx context.Context, bucket, obj string) (info *storage.DownloadInfo, err error) {
 	info, ok := s.Objs[obj]
 	if !ok || info == nil {

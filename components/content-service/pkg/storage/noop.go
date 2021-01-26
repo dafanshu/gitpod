@@ -65,6 +65,10 @@ func (*PresignedNoopStorage) EnsureExists(ctx context.Context, ownerId string) (
 	return nil
 }
 
+func (*PresignedNoopStorage) DiskUsage(ctx context.Context, bucket string, prefix string) (size int64, err error) {
+	return 0, nil
+}
+
 // SignDownload returns ErrNotFound
 func (*PresignedNoopStorage) SignDownload(ctx context.Context, bucket, obj string) (info *DownloadInfo, err error) {
 	return nil, ErrNotFound
