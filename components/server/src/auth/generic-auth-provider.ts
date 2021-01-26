@@ -443,6 +443,7 @@ export class GenericAuthProvider implements AuthProvider {
                     envVars,
                     additionalIdentity: githubIdentity,
                     additionalToken: githubToken,
+                    authHost: this.host,
                     isBlocked
                 }
             }
