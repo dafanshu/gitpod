@@ -143,15 +143,19 @@ func (rs *DirectMinIOStorage) defaultObjectAccess(ctx context.Context, bkt, obj 
 
 // EnsureExists makes sure that the remote storage location exists and can be up- or downloaded from
 func (rs *DirectMinIOStorage) EnsureExists(ctx context.Context) (err error) {
+	return minioEnsureExists(ctx, rs.client, rs.bucketName(), rs.MinIOConfig)
+}
+
+func minioEnsureExists(ctx context.Context, client *minio.Client, bucketName string, miniIOConfig MinIOConfig) (err error) {
 	//nolint:staticcheck,ineffassign
 	span, ctx := opentracing.StartSpanFromContext(ctx, "DirectEnsureExists")
 	defer tracing.FinishSpan(span, &err)
 
-	if rs.client == nil {
+	if client == nil {
 		return xerrors.Errorf("no MinIO client avialable - did you call Init()?")
 	}
 
-	exists, err := rs.client.BucketExists(ctx, rs.bucketName())
+	exists, err := client.BucketExists(ctx, bucketName)
 	if err != nil {
 		return err
 	}
@@ -160,8 +164,8 @@ func (rs *DirectMinIOStorage) EnsureExists(ctx context.Context) (err error) {
 		return nil
 	}
 
-	log.WithField("bucketName", rs.bucketName()).Debug("Creating bucket")
-	err = rs.client.MakeBucket(ctx, rs.bucketName(), minio.MakeBucketOptions{Region: rs.MinIOConfig.Region})
+	log.WithField("bucketName", bucketName).Debug("Creating bucket")
+	err = client.MakeBucket(ctx, bucketName, minio.MakeBucketOptions{Region: miniIOConfig.Region})
 	if err != nil {
 		return xerrors.Errorf("cannot create bucket: %w", err)
 	}
@@ -267,11 +271,17 @@ func newPresignedMinIOAccess(cfg MinIOConfig) (*presignedMinIOStorage, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &presignedMinIOStorage{client: cl}, nil
+	return &presignedMinIOStorage{client: cl, MinIOConfig: cfg}, nil
 }
 
 type presignedMinIOStorage struct {
-	client *minio.Client
+	client      *minio.Client
+	MinIOConfig MinIOConfig
+}
+
+// EnsureExists makes sure that the remote storage location exists and can be up- or downloaded from
+func (s *presignedMinIOStorage) EnsureExists(ctx context.Context, ownerId string) (err error) {
+	return minioEnsureExists(ctx, s.client, s.Bucket(ownerId), s.MinIOConfig)
 }
 
 func (s *presignedMinIOStorage) SignDownload(ctx context.Context, bucket, object string) (info *DownloadInfo, err error) {

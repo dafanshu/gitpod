@@ -215,6 +215,10 @@ func (*testStorage) BlobObject(name string) (string, error) {
 	return "blobs/" + name, nil
 }
 
+func (s *testStorage) EnsureExists(ctx context.Context, ownerId string) (err error) {
+	return nil
+}
+
 func (s *testStorage) SignDownload(ctx context.Context, bucket, obj string) (info *storage.DownloadInfo, err error) {
 	info, ok := s.Objs[obj]
 	if !ok || info == nil {

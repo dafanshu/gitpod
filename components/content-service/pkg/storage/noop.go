@@ -61,6 +61,10 @@ func (rs *DirectNoopStorage) SnapshotObject(name string) string {
 // PresignedNoopStorage does nothing
 type PresignedNoopStorage struct{}
 
+func (*PresignedNoopStorage) EnsureExists(ctx context.Context, ownerId string) (err error) {
+	return nil
+}
+
 // SignDownload returns ErrNotFound
 func (*PresignedNoopStorage) SignDownload(ctx context.Context, bucket, obj string) (info *DownloadInfo, err error) {
 	return nil, ErrNotFound

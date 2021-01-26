@@ -54,6 +54,9 @@ type PresignedAccess interface {
 	BucketNamer
 	BlobObjectNamer
 
+	// EnsureExists makes sure that the remote storage location exists and can be up- or downloaded from
+	EnsureExists(ctx context.Context, ownerId string) error
+
 	// SignDownload describes an object for download - if the object is not found, ErrNotFound is returned
 	SignDownload(ctx context.Context, bucket, obj string) (info *DownloadInfo, err error)
 
