@@ -44,7 +44,7 @@ components:
   
   contentService:
     remoteStorage:
-      blobQuota: 1073741824 # 1 GiB
+      blobQuota: 1048576 # 1 MiB
 
   workspace:
     # configure GCP registry

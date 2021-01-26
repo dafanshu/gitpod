@@ -15,5 +15,5 @@ subjects:
   name: content-service
 roleRef:
   kind: ClusterRole
-  name: {{ .Release.Namespace }}-ns-nobody
+  name: {{ .Release.Namespace }}-ns-psp:restricted-root-user
   apiGroup: rbac.authorization.k8s.io
