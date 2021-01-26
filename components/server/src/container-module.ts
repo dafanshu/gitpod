@@ -68,6 +68,7 @@ import { MonitoringEndpointsApp } from './monitoring-endpoints';
 import { BearerAuth } from './auth/bearer-authenticator';
 import { TermsProvider } from './terms/terms-provider';
 import { TosCookie } from './user/tos-cookie';
+import { ProceedWithAccountCookie } from './user/proceed-with-account-cookie';
 
 export const productionContainerModule = new ContainerModule((bind, unbind, isBound, rebind) => {
     bind(Env).toSelf().inSingletonScope();
@@ -84,6 +85,7 @@ export const productionContainerModule = new ContainerModule((bind, unbind, isBo
     bind(LoginCompletionHandler).toSelf().inSingletonScope();
     bind(GitpodCookie).toSelf().inSingletonScope();
     bind(TosCookie).toSelf().inSingletonScope();
+    bind(ProceedWithAccountCookie).toSelf().inSingletonScope();
 
     bind(SessionHandlerProvider).toSelf().inSingletonScope();
     bind(Server).toSelf().inSingletonScope();

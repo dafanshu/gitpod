@@ -16,6 +16,7 @@ import { BlockedUserFilter } from "../auth/blocked-user-filter";
 import * as uuidv4 from 'uuid/v4';
 import { TermsProvider } from "../terms/terms-provider";
 import { TokenService } from "./token-service";
+import { TwinUserException } from "../auth/errors";
 
 export interface FindUserByIdentityStrResult {
     user: User;
@@ -155,7 +156,7 @@ export class UserService {
     }
 
     /**
-     * This might throw `AuthError`s.
+     * This might throw `AuthException`s.
      *
      * @param params
      */
@@ -285,4 +286,37 @@ export class UserService {
         user.identities = user.identities.filter(i => i.authProviderId !== authProviderId);
         await this.userDb.storeUser(user);
     }
+
+    async asserNoTwinAccount(currentUser: User, authHost: string, authProviderId: string, candidate: Identity) {
+        if (currentUser.identities.some(i => Identity.equals(i, candidate))) {
+            return; // same user => OK
+        }
+        const otherUser = await this.findUserForLogin({ candidate });
+        if (!otherUser) {
+            return; // no twin => OK
+        }
+
+        /*
+         * /!\ another user account is connected with this provider identity.
+         */
+
+        const externalIdentities = currentUser.identities.filter(i => i.authProviderId !== TokenService.GITPOD_AUTH_PROVIDER_ID);
+        const loginIdentityOfCurrentUser = externalIdentities[externalIdentities.length - 1];
+        const loginHostOfCurrentUser = this.hostContextProvider.getAll().find(c => c.authProvider.authProviderId === loginIdentityOfCurrentUser.authProviderId)?.authProvider?.config?.host;
+
+        const hints: TwinUserException.Payload = {
+            currentUser: {
+                name: currentUser.name!,
+                authHost: loginHostOfCurrentUser!,
+                authName: loginIdentityOfCurrentUser.authName
+            },
+            otherUser: {
+                name: otherUser.name!,
+                authHost,
+                authName: candidate.authName
+            }
+        }
+        throw TwinUserException.create(`User is trying to connect a provider identity twice.`, hints);
+    }
+
 }
