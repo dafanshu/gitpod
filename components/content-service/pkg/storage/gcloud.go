@@ -23,6 +23,7 @@ import (
 	"github.com/gitpod-io/gitpod/common-go/tracing"
 	"github.com/opentracing/opentracing-go"
 
+	"cloud.google.com/go/storage"
 	gcpstorage "cloud.google.com/go/storage"
 	validation "github.com/go-ozzo/ozzo-validation"
 	"golang.org/x/oauth2/google"
@@ -754,6 +755,35 @@ func (s *PresignedGCPStorage) EnsureExists(ctx context.Context, ownerId string) 
 	defer client.Close()
 
 	return gcpEnsureExists(ctx, client, s.Bucket(ownerId), s.config)
+}
+
+func (s *PresignedGCPStorage) DiskUsage(ctx context.Context, bucket string, prefix string) (size int64, err error) {
+	client, err := newGCPClient(ctx, s.config)
+	if err != nil {
+		return
+	}
+	defer client.Close()
+
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	var total int64
+	it := client.Bucket(bucket).Objects(ctx, &storage.Query{
+		Prefix:    prefix,
+		Delimiter: "/",
+	})
+	for {
+		attrs, err := it.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return 0, err
+		}
+		total += attrs.Size
+	}
+
+	return total, nil
 }
 
 // SignDownload provides presigned URLs to access remote storage objects

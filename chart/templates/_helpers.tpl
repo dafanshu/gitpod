@@ -326,6 +326,7 @@ data:
 storage:
 {{- if eq .remoteStorage.kind "minio" }}
   kind: minio
+  blobQuota: {{ .remoteStorage.blobQuota | default 0 }}
   minio:
     endpoint: {{ $remoteStorageMinio.endpoint | default (printf "minio.%s" $.Values.hostname) }}
     accessKey: {{ required "minio access key is required, please add a value to your values.yaml" ($remoteStorageMinio.accessKey | default $minio.accessKey) }}

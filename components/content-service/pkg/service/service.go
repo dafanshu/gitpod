@@ -6,6 +6,7 @@ package service
 
 import (
 	"context"
+	"strings"
 
 	"github.com/gitpod-io/gitpod/common-go/log"
 	"github.com/gitpod-io/gitpod/common-go/tracing"
@@ -48,7 +49,25 @@ func (cs *ContentService) UploadUrl(ctx context.Context, req *api.UploadUrlReque
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	info, err := cs.s.SignUpload(ctx, cs.s.Bucket(req.OwnerId), blobName)
+	bucket := cs.s.Bucket(req.OwnerId)
+
+	if cs.cfg.BlobQuota > 0 {
+		prefix := strings.Split(blobName, "/")[0]
+		size, err := cs.s.DiskUsage(ctx, bucket, prefix)
+
+		if err != nil {
+			return nil, status.Error(codes.Unknown, err.Error())
+		}
+		exceeded := size >= cs.cfg.BlobQuota
+		log.WithFields(log.OWI(req.OwnerId, "", "")).Debugf("checking blob quota - quota: %d, size: %d, exceeded: %t", cs.cfg.BlobQuota, size, exceeded)
+		if exceeded {
+			return nil, status.Error(codes.ResourceExhausted, "quota exceeded")
+		}
+	} else {
+		log.Debug("blob quota disabled")
+	}
+
+	info, err := cs.s.SignUpload(ctx, bucket, blobName)
 	if err != nil {
 		log.Error("error getting SignUpload URL: ", err)
 		if err == storage.ErrNotFound {

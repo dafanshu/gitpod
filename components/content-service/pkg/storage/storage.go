@@ -57,6 +57,9 @@ type PresignedAccess interface {
 	// EnsureExists makes sure that the remote storage location exists and can be up- or downloaded from
 	EnsureExists(ctx context.Context, ownerId string) error
 
+	// DiskUsage gives the total objects size of objects that have the given prefix
+	DiskUsage(ctx context.Context, bucket string, prefix string) (size int64, err error)
+
 	// SignDownload describes an object for download - if the object is not found, ErrNotFound is returned
 	SignDownload(ctx context.Context, bucket, obj string) (info *DownloadInfo, err error)
 
@@ -205,6 +208,8 @@ type Config struct {
 		Enabled   bool `json:"enabled"`
 		MaxLength int  `json:"maxLength"`
 	} `json:"backupTrail"`
+
+	BlobQuota int64 `json:"blobQuota"`
 }
 
 // Stage represents the deployment environment in which we're operating

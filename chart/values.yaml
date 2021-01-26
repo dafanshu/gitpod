@@ -175,6 +175,7 @@ components:
         containerPort: 9500
     remoteStorage:
       kind: minio
+      blobQuota: 0
 
   dbMigrations:
     enabled: true

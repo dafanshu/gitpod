@@ -284,6 +284,27 @@ func (s *presignedMinIOStorage) EnsureExists(ctx context.Context, ownerId string
 	return minioEnsureExists(ctx, s.client, s.Bucket(ownerId), s.MinIOConfig)
 }
 
+func (s *presignedMinIOStorage) DiskUsage(ctx context.Context, bucket string, prefix string) (size int64, err error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "minio.DiskUsage")
+	defer tracing.FinishSpan(span, &err)
+
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	objectCh := s.client.ListObjects(ctx, bucket, minio.ListObjectsOptions{
+		Prefix:    prefix,
+		Recursive: true,
+	})
+	var total int64
+	for object := range objectCh {
+		if object.Err != nil {
+			return 0, object.Err
+		}
+		total += object.Size
+	}
+	return total, nil
+}
+
 func (s *presignedMinIOStorage) SignDownload(ctx context.Context, bucket, object string) (info *DownloadInfo, err error) {
 	//nolint:ineffassign
 	span, ctx := opentracing.StartSpanFromContext(ctx, "minio.SignDownload")
