@@ -97,6 +97,10 @@ const (
 	KindGit = "git"
 )
 
+const (
+	userConfigBlobName = "user-config.tar"
+)
+
 // Run serves as main entrypoint to the supervisor
 func Run(options ...RunOption) {
 	defer log.Info("supervisor shut down")
@@ -153,6 +157,8 @@ func Run(options ...RunOption) {
 		taskManager = newTasksManager(cfg, termMuxSrv, cstate, &loggingHeadlessTaskProgressReporter{})
 	)
 	tokenService.provider[KindGit] = []tokenProvider{NewGitTokenProvider(gitpodService)}
+
+	downloadUserConfig(ctx, gitpodService)
 
 	termMuxSrv.DefaultWorkdir = cfg.RepoRoot
 	termMuxSrv.Env = buildIDEEnv(cfg)
@@ -221,6 +227,10 @@ func Run(options ...RunOption) {
 	if err != nil {
 		log.WithError(err).Error("terminal closure failed")
 	}
+
+	ctx2, cancel2 := context.WithCancel(context.Background())
+	uploadUserConfig(ctx2, gitpodService)
+	cancel2()
 
 	// terminate all child processes once the IDE is gone
 	ideWG.Wait()
@@ -485,6 +495,77 @@ func prepareIDELaunch(cfg *Config) *exec.Cmd {
 	}
 
 	return cmd
+}
+
+func downloadUserConfig(ctx context.Context, gitpodService *gitpod.APIoverJSONRPC) {
+	start := time.Now()
+	defer func() { log.Debugf("[user config backup] downloading user config took %s", time.Since(start)) }()
+
+	var (
+		url string
+		err error
+	)
+	url = os.Getenv("GITPOD_USER_CONFIG_DOWNLOAD_URL")
+	if url != "" {
+		b, err := isURLValid(url)
+		if err != nil {
+			log.Debugf("URL '%s' is not valid (%v). Acquiring a new one ...", url, err)
+			url = ""
+		} else if !b {
+			log.Debugf("URL '%s' is expired. Acquiring a new one ...", url)
+			url = ""
+		}
+	}
+	if url == "" {
+		url, err = gitpodService.GetContentBlobDownloadURL(ctx, userConfigBlobName)
+		if err != nil {
+			log.Error("[user config backup] could not get download URL: ", err)
+			return
+		}
+	}
+
+	log.Debugf("[user config backup] trying to restore user config from '%s'.", url)
+	err = restoreUserConfig(url)
+	if err != nil {
+		log.Error("[user config backup] restoring user config failed: ", err)
+	}
+	log.Debug("[user config backup] restoring user config done")
+}
+
+func uploadUserConfig(ctx context.Context, gitpodService *gitpod.APIoverJSONRPC) {
+	start := time.Now()
+	defer func() { log.Debugf("[user config backup] uploading user config took %s", time.Since(start)) }()
+
+	var (
+		url string
+		err error
+	)
+	url = os.Getenv("GITPOD_USER_CONFIG_UPLOAD_URL")
+	if url != "" {
+		b, err := isURLValid(url)
+		if err != nil {
+			log.Debugf("URL '%s' is not valid (%v). Acquiring a new one ...", url, err)
+			url = ""
+		} else if !b {
+			log.Debugf("URL '%s' is expired. Acquiring a new one ...", url)
+			url = ""
+		}
+	}
+	if url == "" {
+		url, err = gitpodService.GetContentBlobUploadURL(ctx, userConfigBlobName)
+		if err != nil {
+			log.Error("[user config backup] could not get upload URL: ", err)
+			return
+		}
+	}
+
+	log.Debugf("[user config backup] trying to backup user config to '%s'.", url)
+	globs := []string{"/home/gitpod/.theia/**/*", "/home/gitpod/.bash_history"} // TODO
+	err = backupUserConfig(url, globs)
+	if err != nil {
+		log.Error("[user config backup] backuping user config failed: ", err)
+	}
+	log.Debug("[user config backup] backuping user config done")
 }
 
 func buildIDEEnv(cfg *Config) []string {
