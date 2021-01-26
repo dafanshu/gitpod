@@ -38,6 +38,9 @@ interface AccessControlState {
     newScopes?: Map<string, Set<string>>;
     notification?: { hostToBeReviewed: string } | { updatedHost: string; updatedScopes: string[] };
     user?: User;
+    disconnectDialog?: {
+        authHost: string;
+    };
 }
 interface AccessControlProps {
     service: GitpodService;
@@ -196,6 +199,7 @@ export class AccessControl extends React.Component<AccessControlProps, AccessCon
                 </Toolbar>
                 {this.renderTokenContainer()}
                 {this.renderInfoDialog()}
+                {this.renderDisconnectDialog()}
             </div>
         );
     }
@@ -381,7 +385,7 @@ export class AccessControl extends React.Component<AccessControlProps, AccessCon
                                 [...(provider.requirements && provider.requirements.default || []), ...Array.from(newScopes)]), 'Connect'))
                     }
                     {identity && (
-                        <IconButton className="delete-button" onClick={() => this.disconnect(provider.host)} title="Disconnect">
+                        <IconButton className="delete-button" onClick={() => this.setState({ disconnectDialog: { authHost: provider.host } })} title="Disconnect">
                             <Delete fontSize="small" />
                         </IconButton>
                     )}
@@ -454,12 +458,62 @@ export class AccessControl extends React.Component<AccessControlProps, AccessCon
         }).toString();
     }
 
-    protected disconnect(provider: string) {
+    protected renderDisconnectDialog() {
+        const { disconnectDialog, user, authProviders } = this.state;
+        const authHost = disconnectDialog?.authHost;
+        const authProvider = authProviders.find(a => a.host === authHost);
+        if (!disconnectDialog || !user || !authProvider) {
+            return;
+        }
+
+        let message: JSX.Element;
+        const handleCancel = () => {
+            this.setState({
+                disconnectDialog: undefined
+            });
+        };
+        let buttonLabel: string;
+        let handleButton: () => void;
+
         const thisUrl = new GitpodHostUrl(new URL(window.location.toString()));
-        const returnTo = encodeURIComponent(thisUrl.with({ search: `updated=${provider}` }).toString());
-        window.location.href = thisUrl.withApi({
-            pathname: '/deauthorize',
-            search: `returnTo=${returnTo}&host=${provider}`
-        }).toString();
+        const otherIdentitiesOfUser = user.identities.filter(i => i.authProviderId !== authProvider.authProviderId);
+        if (otherIdentitiesOfUser.length === 0) {
+            message = (<DialogContentText>
+                Disconnecting the single remaining provider would make your account unreachable. Please go the settings, if you want to delete the account.
+            </DialogContentText>);
+
+            const settingsUrl = thisUrl.asSettings().toString();
+
+            buttonLabel = "Settings";
+            handleButton = () => window.location.href = settingsUrl;
+        } else {
+            message = (<DialogContentText>
+                You are about to disconnect your account from {authHost}.
+            </DialogContentText>);
+
+            const returnTo = encodeURIComponent(thisUrl.with({ search: `updated=${authHost}` }).toString());
+            const deauthorizeUrl = window.location.href = thisUrl.withApi({
+                pathname: '/deauthorize',
+                search: `returnTo=${returnTo}&host=${authHost}`
+            }).toString();
+
+            buttonLabel = "Proceed";
+            handleButton = () => window.location.href = deauthorizeUrl;
+        }
+
+        return (
+            <Dialog
+                key="diconnect-dialog"
+                open={!!disconnectDialog}
+                onClose={handleCancel}
+            >
+                <DialogTitle>Disconnect from {authHost}</DialogTitle>
+                <DialogContent>{message}</DialogContent>
+                <DialogActions>
+                    <Button onClick={handleButton} variant="outlined" color="secondary" autoFocus>{buttonLabel}</Button>
+                    <Button onClick={handleCancel} variant="outlined" color="primary" autoFocus>Cancel</Button>
+                </DialogActions>
+            </Dialog>
+        );
     }
 }
