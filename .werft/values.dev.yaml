@@ -155,6 +155,8 @@ docker-registry:
   enabled: false
 
 minio:
+  accessKey: EXAMPLEvalue
+  secretKey: Someone.Should/ReallyChangeThisKey!!
   serviceAccount:
     name: ws-daemon
     create: false

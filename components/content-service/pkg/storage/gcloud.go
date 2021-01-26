@@ -736,6 +736,11 @@ func (p *PresignedGCPStorage) Bucket(owner string) string {
 	return gcpBucketName(p.stage, owner)
 }
 
+// BlobObject returns a blob's object name
+func (s *PresignedGCPStorage) BlobObject(name string) (string, error) {
+	return blobObjectName(name)
+}
+
 // SignDownload provides presigned URLs to access remote storage objects
 func (p *PresignedGCPStorage) SignDownload(ctx context.Context, bucket, object string) (*DownloadInfo, error) {
 	client, err := newGCPClient(ctx, p.config)
@@ -790,5 +795,37 @@ func (p *PresignedGCPStorage) downloadInfo(ctx context.Context, client *gcpstora
 		Meta: *meta,
 		URL:  url,
 		Size: obj.Size,
+	}, nil
+}
+
+// SignUpload describes an object for upload
+func (p *PresignedGCPStorage) SignUpload(ctx context.Context, bucket, object string) (info *UploadInfo, err error) {
+	client, err := newGCPClient(ctx, p.config)
+	if err != nil {
+		return nil, err
+	}
+	defer client.Close()
+
+	bkt := client.Bucket(bucket)
+	_, err = bkt.Attrs(ctx)
+	if err == gcpstorage.ErrBucketNotExist {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	url, err := gcpstorage.SignedURL(bucket, object, &gcpstorage.SignedURLOptions{
+		Method:         "PUT",
+		GoogleAccessID: p.accessID,
+		PrivateKey:     p.privateKey,
+		Expires:        time.Now().Add(30 * time.Minute),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &UploadInfo{
+		URL: url,
 	}, nil
 }
