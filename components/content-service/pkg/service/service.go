@@ -38,6 +38,11 @@ func (cs *ContentService) UploadUrl(ctx context.Context, req *api.UploadUrlReque
 	span.SetTag("name", req.Name)
 	defer tracing.FinishSpan(span, &err)
 
+	err = cs.s.EnsureExists(ctx, req.OwnerId)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, err.Error())
+	}
+
 	blobName, err := cs.s.BlobObject(req.Name)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
