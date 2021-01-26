@@ -15,6 +15,7 @@ import { AuthProviderParams, AuthUser } from "../auth/auth-provider";
 import { BlockedUserFilter } from "../auth/blocked-user-filter";
 import * as uuidv4 from 'uuid/v4';
 import { TermsProvider } from "../terms/terms-provider";
+import { TokenService } from "./token-service";
 
 export interface FindUserByIdentityStrResult {
     user: User;
@@ -267,5 +268,21 @@ export class UserService {
                 log.error(`Failed update user EnvVar on login!`, { error, user: User.censor(user), envVar: { name, value, repositoryPattern } });
             }
         }
+    }
+
+    async deauthorize(user: User, authProviderId: string) {
+        const externalIdentities = user.identities.filter(i => i.authProviderId !== TokenService.GITPOD_AUTH_PROVIDER_ID);
+        if (!externalIdentities.some(i => i.authProviderId === authProviderId)) {
+            log.debug('Cannot deauthorize. Authorization not found.', { userId: user.id, authProviderId });
+            return;
+        }
+
+        if (externalIdentities.length === 1) {
+            throw new Error("Cannot remove last provider authorization. Please delete account instead.");
+        }
+
+        // effectively remove the provider authorization
+        user.identities = user.identities.filter(i => i.authProviderId !== authProviderId);
+        await this.userDb.storeUser(user);
     }
 }

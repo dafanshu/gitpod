@@ -20,6 +20,7 @@ import CardContent from '@material-ui/core/CardActions';
 import DialogContentText from '@material-ui/core/DialogContentText';
 import DialogContent from '@material-ui/core/DialogContent';
 import Dialog from '@material-ui/core/Dialog';
+import Delete from '@material-ui/icons/Delete';
 import DialogTitle from '@material-ui/core/DialogTitle';
 import DialogActions from '@material-ui/core/DialogActions';
 import { themeMode } from '../../withRoot';
@@ -379,6 +380,11 @@ export class AccessControl extends React.Component<AccessControlProps, AccessCon
                                 // for authorization we set the required (if any) plus the new scopes
                                 [...(provider.requirements && provider.requirements.default || []), ...Array.from(newScopes)]), 'Connect'))
                     }
+                    {identity && (
+                        <IconButton className="delete-button" onClick={() => this.disconnect(provider.host)} title="Disconnect">
+                            <Delete fontSize="small" />
+                        </IconButton>
+                    )}
                 </CardActions>
             </Grid>
         </Card>);
@@ -445,6 +451,15 @@ export class AccessControl extends React.Component<AccessControlProps, AccessCon
         window.location.href = thisUrl.withApi({
             pathname: '/authorize',
             search: `returnTo=${returnTo}&host=${provider}&override=true&scopes=${scopes.join(',')}`
+        }).toString();
+    }
+
+    protected disconnect(provider: string) {
+        const thisUrl = new GitpodHostUrl(new URL(window.location.toString()));
+        const returnTo = encodeURIComponent(thisUrl.with({ search: `updated=${provider}` }).toString());
+        window.location.href = thisUrl.withApi({
+            pathname: '/deauthorize',
+            search: `returnTo=${returnTo}&host=${provider}`
         }).toString();
     }
 }
