@@ -72,6 +72,7 @@ export class Authenticator {
             const hostContexts = this.hostContextProvider.getAll();
             for (const { authProvider } of hostContexts) {
                 const authCallbackPath = authProvider.authCallbackPath;
+                log.debug(`Auth Provider Callback. Checking callback path of auth provider: ${authCallbackPath}`, { req });
                 if (req.url.startsWith(authCallbackPath)) {
                     log.info(`Auth Provider Callback. Path: ${authCallbackPath}`, { req });
                     await authProvider.callback(req, res, next);
