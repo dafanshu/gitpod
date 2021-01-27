@@ -519,3 +519,4 @@ mysql:
   extraVolumeMounts: |
     - mountPath: /docker-entrypoint-initdb.d
       name: init-scripts
+
