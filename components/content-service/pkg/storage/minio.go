@@ -14,6 +14,7 @@ import (
 
 	"github.com/gitpod-io/gitpod/common-go/log"
 	"github.com/gitpod-io/gitpod/common-go/tracing"
+	"github.com/gitpod-io/gitpod/content-service/pkg/archive"
 	"github.com/opentracing/opentracing-go"
 	"golang.org/x/xerrors"
 
@@ -169,7 +170,7 @@ func (rs *DirectMinIOStorage) EnsureExists(ctx context.Context) (err error) {
 	return nil
 }
 
-func (rs *DirectMinIOStorage) download(ctx context.Context, destination string, bkt string, obj string) (found bool, err error) {
+func (rs *DirectMinIOStorage) download(ctx context.Context, destination string, bkt string, obj string, mappings []archive.IDMapping) (found bool, err error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "download")
 	span.SetTag("bucket", bkt)
 	span.SetTag("object", obj)
@@ -181,7 +182,7 @@ func (rs *DirectMinIOStorage) download(ctx context.Context, destination string, 
 	}
 	defer rc.Close()
 
-	err = extractTarbal(destination, rc)
+	err = extractTarbal(ctx, destination, rc, mappings)
 	if err != nil {
 		return true, err
 	}
@@ -190,18 +191,18 @@ func (rs *DirectMinIOStorage) download(ctx context.Context, destination string, 
 }
 
 // Download takes the latest state from the remote storage and downloads it to a local path
-func (rs *DirectMinIOStorage) Download(ctx context.Context, destination string, name string) (bool, error) {
-	return rs.download(ctx, destination, rs.bucketName(), rs.objectName(name))
+func (rs *DirectMinIOStorage) Download(ctx context.Context, destination string, name string, mappings []archive.IDMapping) (bool, error) {
+	return rs.download(ctx, destination, rs.bucketName(), rs.objectName(name), mappings)
 }
 
 // DownloadSnapshot downloads a snapshot. The snapshot name is expected to be one produced by Qualify
-func (rs *DirectMinIOStorage) DownloadSnapshot(ctx context.Context, destination string, name string) (bool, error) {
+func (rs *DirectMinIOStorage) DownloadSnapshot(ctx context.Context, destination string, name string, mappings []archive.IDMapping) (bool, error) {
 	bkt, obj, err := ParseSnapshotName(name)
 	if err != nil {
 		return false, err
 	}
 
-	return rs.download(ctx, destination, bkt, obj)
+	return rs.download(ctx, destination, bkt, obj, mappings)
 }
 
 // Qualify fully qualifies a snapshot name so that it can be downloaded using DownloadSnapshot
