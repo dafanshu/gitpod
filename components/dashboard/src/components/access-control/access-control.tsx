@@ -20,7 +20,7 @@ import CardContent from '@material-ui/core/CardActions';
 import DialogContentText from '@material-ui/core/DialogContentText';
 import DialogContent from '@material-ui/core/DialogContent';
 import Dialog from '@material-ui/core/Dialog';
-import Delete from '@material-ui/icons/Delete';
+import HighlightOffOutlined from '@material-ui/icons/HighlightOffOutlined';
 import DialogTitle from '@material-ui/core/DialogTitle';
 import DialogActions from '@material-ui/core/DialogActions';
 import { themeMode } from '../../withRoot';
@@ -328,7 +328,7 @@ export class AccessControl extends React.Component<AccessControlProps, AccessCon
         const icon = this.getIcon(provider);
         const dirty = !this.equals(oldScopes, newScopes);
         const identity = this.state.user && this.state.user.identities.find(i => i.authProviderId === provider.authProviderId);
-        return (<Card key={this.renderKey++}
+        return (<Card key={`provider-token-${this.renderKey++}`}
             style={{ 
                 verticalAlign: "top", 
                 textAlign: 'center', 
@@ -375,6 +375,15 @@ export class AccessControl extends React.Component<AccessControlProps, AccessCon
                 </CardContent>
             </Grid>
 
+            {identity && (<Grid item direction="column">
+                <span style={{ fontSize: "80%" }}>
+                    Connected as <strong>{identity.authName}</strong>
+                    <IconButton style={{ padding: '4px', marginLeft: '2px' }} onClick={() => this.setState({ disconnectDialog: { authHost: provider.host } })} title="Disconnect">
+                        <HighlightOffOutlined fontSize="small" style={{ verticalAlign: 'middle', color: 'var(--font-color2)' }} />
+                    </IconButton>
+                </span>
+            </Grid>)}
+
             <Grid item direction="column">
                 <CardActions style={{ display: 'block', textAlign: 'center', paddingTop: 15, paddingRight: 10, paddingBottom: 12 }} disableActionSpacing={true}>
                     {!provider.isReadonly && (
@@ -384,11 +393,6 @@ export class AccessControl extends React.Component<AccessControlProps, AccessCon
                                 // for authorization we set the required (if any) plus the new scopes
                                 [...(provider.requirements && provider.requirements.default || []), ...Array.from(newScopes)]), 'Connect'))
                     }
-                    {identity && (
-                        <IconButton className="delete-button" onClick={() => this.setState({ disconnectDialog: { authHost: provider.host } })} title="Disconnect">
-                            <Delete fontSize="small" />
-                        </IconButton>
-                    )}
                 </CardActions>
             </Grid>
         </Card>);
@@ -492,7 +496,7 @@ export class AccessControl extends React.Component<AccessControlProps, AccessCon
             </DialogContentText>);
 
             const returnTo = encodeURIComponent(thisUrl.with({ search: `updated=${authHost}` }).toString());
-            const deauthorizeUrl = window.location.href = thisUrl.withApi({
+            const deauthorizeUrl = thisUrl.withApi({
                 pathname: '/deauthorize',
                 search: `returnTo=${returnTo}&host=${authHost}`
             }).toString();
